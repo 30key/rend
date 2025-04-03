@@ -5,7 +5,7 @@ services:
     env: docker
     dockerfilePath: Dockerfile
     repo: https://github.com/30key/rend
-    branch: main
+    branch: master
     autoDeploy: false
     envVars:
       - key: PORT
