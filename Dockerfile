@@ -1,55 +1,39 @@
-FROM lsiobase/ubuntu:bionic
+FROM ubuntu:20.04
 
-# set version label
-ARG BUILD_DATE
-ARG VERSION
-ARG JACKETT_RELEASE
-LABEL build_version="Linuxserver.io version:- ${VERSION} Build-date:- ${BUILD_DATE}"
-LABEL maintainer="sparklyballs"
+# Set environment variables
+ENV JACKETT_RELEASE=latest \
+    JACKETT_ARCH=LinuxAMDx64 \
+    XDG_CONFIG_HOME=/config \
+    PUID=1000 \
+    PGID=1000 \
+    TZ=UTC
 
-# arch settings, uncomment as neccesary
-ARG JACKETT_ARCH="LinuxAMDx64"
-# ARG JACKETT_ARCH="LinuxARM32"
-# ARG JACKETT_ARCH="LinuxARM64"
+# Install dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    libicu66 \
+    libssl1.1 \
+    wget \
+    tar \
+    jq \
+    && rm -rf /var/lib/apt/lists/*
 
-# environment settings
-ARG DEBIAN_FRONTEND="noninteractive"
-ENV XDG_DATA_HOME="/config" \
-XDG_CONFIG_HOME="/config"
+# Install Jackett
+RUN mkdir -p /app/Jackett && \
+    JACKETT_RELEASE=$(curl -s https://api.github.com/repos/Jackett/Jackett/releases/latest | jq -r '.tag_name') && \
+    curl -o /tmp/jacket.tar.gz -L \
+    "https://github.com/Jackett/Jackett/releases/download/${JACKETT_RELEASE}/Jackett.Binaries.${JACKETT_ARCH}.tar.gz" && \
+    tar xf /tmp/jacket.tar.gz -C /app/Jackett --strip-components=1 && \
+    rm -rf /tmp/*
 
-RUN \
- echo "**** install packages ****" && \
- apt-get update && \
- apt-get install -y \
-	jq \
-	libicu60 \
-	libssl1.0 \
-	wget && \
- echo "**** install jackett ****" && \
- mkdir -p \
-	/app/Jackett && \
- if [ -z ${JACKETT_RELEASE+x} ]; then \
-	JACKETT_RELEASE=$(curl -sX GET "https://api.github.com/repos/Jackett/Jackett/releases/latest" \
-	| jq -r .tag_name); \
- fi && \
- curl -o \
- /tmp/jacket.tar.gz -L \
-	"https://github.com/Jackett/Jackett/releases/download/${JACKETT_RELEASE}/Jackett.Binaries.${JACKETT_ARCH}.tar.gz" && \
- tar xf \
- /tmp/jacket.tar.gz -C \
-	/app/Jackett --strip-components=1 && \
- echo "**** fix for host id mapping error ****" && \
- chown -R root:root /app/Jackett && \
- echo "**** cleanup ****" && \
- apt-get clean && \
- rm -rf \
-	/tmp/* \
-	/var/lib/apt/lists/* \
-	/var/tmp/*
+# Set permissions
+RUN chown -R ${PUID}:${PGID} /app/Jackett
 
-# add local files
-COPY root/ /
-
-# ports and volumes
-VOLUME /config /downloads
+# Expose port
 EXPOSE 9117
+
+# Volume
+VOLUME /config
+
+# Run command
+CMD ["/app/Jackett/jackett", "--NoUpdates"]
