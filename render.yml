@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: ja 
+    plan: free
+    env: docker
+    dockerfilePath: Dockerfile
+    repo: https://github.com/30key/rend
+    branch: main
+    autoDeploy: false
+    envVars:
+      - key: PORT
+        value: 8000  # Default port value, update if needed
